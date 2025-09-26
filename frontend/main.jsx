@@ -7,6 +7,7 @@ function App(){
   const [summary, setSummary] = useState(null);
   const [q, setQ] = useState("브랜드");
   const [results, setResults] = useState([]);
+  const [ts, setTs] = useState(null);
 
   useEffect(()=>{
     fetch("http://localhost:8000/health").then(r=>r.json()).then(setHealth);
@@ -16,6 +17,11 @@ function App(){
   const doSearch = async () => {
     const r = await fetch(`http://localhost:8000/search?q=${encodeURIComponent(q)}`);
     setResults(await r.json());
+  };
+
+  const loadTs = async () => {
+    const r = await fetch("http://localhost:8000/analytics/timeseries?metric=mentions&period=day");
+    setTs(await r.json());
   };
 
   return (
@@ -34,6 +40,11 @@ function App(){
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="키워드" />
         <button onClick={doSearch}>검색</button>
         <pre>{JSON.stringify(results, null, 2)}</pre>
+      </section>
+      <section style={{marginTop:24}}>
+        <h2>시계열(언급량)</h2>
+        <button onClick={loadTs}>불러오기</button>
+        <pre>{JSON.stringify(ts, null, 2)}</pre>
       </section>
     </div>
   );
