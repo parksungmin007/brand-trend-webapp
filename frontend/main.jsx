@@ -2,6 +2,27 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, Legend
+} from "recharts";
+
+
+
+
+function toRechartsTS(ts) {
+  if(!ts || !ts.series) return [];
+  return ts.series.map(d => ({ date: d.date, value: d.value }));
+}
+function toBarDataFromKeywords(summary) {
+  if(!summary || !summary.keywords) return [];
+  return summary.keywords.slice(0,10).map(k => ({ name: k.term, count: k.count }));
+}
+function toPieDataFromPlatform(summary) {
+  if(!summary || !summary.platform_share) return [];
+  return summary.platform_share.map(p => ({ name: p.platform, value: p.count }));
+}
+
 function App(){
   const [health, setHealth] = useState(null);
   const [summary, setSummary] = useState(null);
