@@ -1,0 +1,23 @@
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+
+# Node
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
+
+# Data
+data/raw/
+data/processed/
+data/cache/
+logs/
+secrets/

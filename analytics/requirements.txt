@@ -1,0 +1,9 @@
+
+pandas==2.2.2
+numpy==2.1.1
+scikit-learn==1.5.2
+# model extras (선택)
+# transformers
+# torch
+# prophet
+# bertopic
