@@ -1,3 +1,3 @@
 | platform | count |
 | --- | --- |
-| news | 1194 |
+| news | 997 |

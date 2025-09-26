@@ -2,6 +2,8 @@ requests==2.32.3
 feedparser==6.0.11
 python-dateutil==2.9.0.post0
 beautifulsoup4==4.12.3
+# pandas 2.1+ requires Python >=3.9. For broader compatibility, use <2.1.
 pandas>=2.0,<2.1
-PyYAML==6.0.2
+# matplotlib pinned to a range that works with Python 3.8–3.11
 matplotlib>=3.7,<3.9
+PyYAML==6.0.2

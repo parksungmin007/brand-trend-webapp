@@ -10,6 +10,39 @@
 import os, json, pathlib, re, collections
 import pandas as pd
 from datetime import datetime
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+DOCS = ROOT / "docs"
+PNG_DIR = DOCS / "png"
+PNG_DIR.mkdir(parents=True, exist_ok=True)
+
+def plot_mentions_line(mentions_df):
+    if mentions_df.empty: 
+        return
+    plt.figure()
+    plt.plot(mentions_df["date"], mentions_df["mentions"], marker="o")
+    plt.title("일별 언급량")
+    plt.xlabel("날짜")
+    plt.ylabel("언급 수")
+    plt.tight_layout()
+    plt.savefig(PNG_DIR / "mentions_by_date.png")
+    plt.close()
+
+def plot_bar(df, xcol, ycol, title, fname):
+    if df.empty:
+        return
+    plt.figure()
+    plt.bar(df[xcol].astype(str), df[ycol])
+    plt.title(title)
+    plt.xlabel(xcol)
+    plt.ylabel(ycol)
+    plt.xticks(rotation=45, ha="right")
+    plt.tight_layout()
+    plt.savefig(PNG_DIR / fname)
+    plt.close()
+
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
@@ -61,7 +94,11 @@ def main():
     kw.to_csv(DOCS/"top_keywords.csv", index=False)
     (DOCS/"top_keywords.md").write_text(to_markdown(kw), encoding="utf-8")
 
-    print("Tables written to", DOCS)
+    plot_mentions_line(mentions)
+    plot_bar(plat, "platform", "count", "플랫폼 분포", "platform_share.png")
+    plot_bar(brand, "brand", "count", "브랜드 분포", "brand_share.png")
+    plot_bar(kw.head(20), "term", "count", "상위 키워드 Top20", "top_keywords.png")
+    print("Tables & PNG charts written to", DOCS, "and", PNG_DIR)
 
 if __name__ == "__main__":
     main()

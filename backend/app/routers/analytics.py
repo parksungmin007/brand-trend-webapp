@@ -8,6 +8,71 @@ from datetime import datetime
 
 router = APIRouter()
 
+# ==== Text normalization & lexicons ====
+import unicodedata
+
+KOREAN_STOPWORDS = {
+    "그리고","그러나","하지만","또한","및","또","그래서","따라서","즉","그러므로",
+    "이","그","저","것","수","등","점","및","및","등등","에서","으로","으로써","으로서",
+    "하다","되다","있다","이다","합니다","했다","했다가","중","및","및","같은","같이",
+    "대한","대해","관련","관련된","기반","위한","위해서","때문","때문에","보다","되는","까지",
+    "만","좀","더","최고","무난","예쁨","좋아요","있음","로","를","은","는","이","가","에","의","와","과","도"
+}
+
+POSITIVE_LEX = {
+    "좋다","좋음","만족","추천","최고","훌륭","빠르","친절","예쁨","가성비","재구매","정직","신뢰","감동","멋지",
+    "편하","괜찮"," 만족","만족도","만점","최상","프리미엄","쾌적","깔끔","예쁘","고급","단단","튼튼","내구","셀링"
+}
+
+NEGATIVE_LEX = {
+    "나쁘","별로","아쉬","느리","불만","실망","최악","허접","부정","고장","하자","지연","파손","불량","환불","반품",
+    "짜증","불편","과대","허위","문제","버그","끊김","지저분","복잡","어렵","비싸","가격대비","가성비없","두껍","무겁"
+}
+
+EMOJI_RE = re.compile(
+    "["
+    "\U0001F300-\U0001F5FF"
+    "\U0001F600-\U0001F64F"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F700-\U0001F77F"
+    "\U0001F780-\U0001F7FF"
+    "\U0001F800-\U0001F8FF"
+    "\U0001F900-\U0001F9FF"
+    "\U0001FA00-\U0001FA6F"
+    "\U0001FA70-\U0001FAFF"
+    "\U00002702-\U000027B0"
+    "\U000024C2-\U0001F251"
+    "]+",
+    flags=re.UNICODE
+)
+
+def norm_platform(p: str) -> str:
+    if not p: return ""
+    p = str(p).strip().lower()
+    mapping = {
+        "뉴스": "news", "news": "news", "article": "news",
+        "블로그": "blog", "blog": "blog",
+        "유튜브": "youtube", "youtube": "youtube", "yt": "youtube",
+        "인스타그램": "instagram", "instagram": "instagram", "ig": "instagram",
+        "트위터": "twitter", "x": "twitter"
+    }
+    return mapping.get(p, p)
+
+def normalize_text(s: str) -> str:
+    if not isinstance(s, str):
+        s = str(s or "")
+    s = unicodedata.normalize("NFKC", s)
+    s = EMOJI_RE.sub(" ", s)
+    s = re.sub(r"[\r\n\t]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+def tokenize_ko(s: str):
+    s = normalize_text(s).lower()
+    toks = re.findall(r"[A-Za-z가-힣0-9]{2,}", s)
+    toks = [t for t in toks if t not in KOREAN_STOPWORDS]
+    return toks
+
 def simple_keyword_extract(texts: List[str], topk:int=10) -> List[str]:
     tokens = []
     for t in texts:
@@ -17,31 +82,53 @@ def simple_keyword_extract(texts: List[str], topk:int=10) -> List[str]:
 
 
 @router.get("/summary")
-def summary():
+def summary(brand: Optional[str]=None, platform: Optional[str]=None, start_date: Optional[str]=None, end_date: Optional[str]=None):
     # Load records if available
     records = _load_records()
-    texts = [str(r.get("text","")) for r in records if r.get("text")]
+        # filters
+    from datetime import datetime
+    def pass_filters(r):
+        rb = str(r.get("brand",""))
+        rp = str(r.get("platform",""))
+        if brand and brand.lower() not in rb.lower():
+            return False
+        if platform and norm_platform(platform) != "" and norm_platform(rp) != norm_platform(platform):
+            return False
+        if start_date or end_date:
+            ts = r.get("published_at") or r.get("publishedAt") or r.get("time")
+            try:
+                dt = datetime.fromisoformat(str(ts).replace("Z","")) if ts else None
+            except Exception:
+                dt = None
+            if start_date:
+                try:
+                    if not dt or dt.date() < datetime.fromisoformat(start_date).date(): return False
+                except Exception:
+                    pass
+            if end_date:
+                try:
+                    if not dt or dt.date() > datetime.fromisoformat(end_date).date(): return False
+                except Exception:
+                    pass
+        return True
+    records = [r for r in records if pass_filters(r)]
+
+    texts = [normalize_text(r.get("text","")) for r in records if r.get("text")]
     brands = [str(r.get("brand","")) for r in records if r.get("brand")]
     platforms = [str(r.get("platform","")) for r in records if r.get("platform")]
 
     # Tokenize and count (very simple, with Korean/ASCII)
-    tokens = []
+        tokens = []
     for t in texts:
-        tokens += re.findall(r"[A-Za-z가-힣0-9]{2,}", t.lower())
-
-    # Simple stop-words (expand later)
-    stop = set(["그리고","하지만","그러나","에서","으로","하다","좋아요","있음","최고","무난","예쁨"])
-    tokens = [w for w in tokens if w not in stop]
+        tokens += tokenize_ko(t)
 
     from collections import Counter
     kw_counter = Counter(tokens)
     top_keywords = [{"term": w, "count": c} for w, c in kw_counter.most_common(12)]
 
-    # Naive sentiment baseline
-    pos_words = {"좋음","좋다","최고","만족","빠르","예쁨","훌륭","추천"}
-    neg_words = {"별로","느리","불만","나쁨","최악","실망"}
-    pos = sum(any(p in t for p in pos_words) for t in texts)
-    neg = sum(any(n in t for n in neg_words) for t in texts)
+    # Sentiment baseline with expanded lexicon
+    pos = sum(any(p in t for p in POSITIVE_LEX) for t in texts)
+    neg = sum(any(n in t for n in NEGATIVE_LEX) for t in texts)
     total = max(len(texts), 1)
     neu = max(total - pos - neg, 0)
     sentiment = {
@@ -94,9 +181,11 @@ def _load_records():
 def timeseries(metric: str = "mentions", brand: Optional[str]=None, platform: Optional[str]=None, period: str="day"):
     records = _load_records()
     def _ok(r):
-        if brand and str(r.get("brand","")).lower() != brand.lower():
+        rb = str(r.get("brand",""))
+        rp = str(r.get("platform",""))
+        if brand and brand.lower() not in rb.lower():
             return False
-        if platform and str(r.get("platform","")).lower() != platform.lower():
+        if platform and norm_platform(platform) != "" and norm_platform(rp) != norm_platform(platform):
             return False
         return True
     agg = defaultdict(int)
