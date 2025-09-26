@@ -67,6 +67,8 @@ def summary():
     }
 
 DATA_PATHS = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "collected.jsonl")),
+
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "sample.jsonl")),
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "sample.jsonl")),
 ]
