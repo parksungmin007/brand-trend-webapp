@@ -41,6 +41,3 @@ npm run dev
 - `POST /ingest` : 원시 텍스트/메타데이터 수집
 - `GET /analytics/summary` : 키워드/감성/토픽 간단 요약 (더미)
 - `GET /search?q=...` : 간단 키워드 검색 (더미)
-
-## 라이선스
-MIT
